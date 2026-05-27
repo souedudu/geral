@@ -54,9 +54,17 @@ prod-key: ## Gera APP_KEY para lar e restaurante (imprime na tela — cole no .e
 
 prod-cert: ## Emite certificado TLS via Certbot (Let's Encrypt) para o domínio do lar
 	@echo "$(Y)Confirme que o DNS xn--larpadronizao-7eb3d.com.br aponta para este IP antes de continuar.$(N)"
+	@echo "$(Y)A porta 80 NÃO pode estar em uso (pare o nginx se já subiu): make prod-down$(N)"
 	@read -p "Continuar? [s/N] " ok; [ "$$ok" = "s" ] || exit 1
-	$(PROD) run --rm --service-ports certbot \
-		certonly --standalone --agree-tos --no-eff-email \
+	@PROJECT=$$(basename $$(pwd)) && \
+	docker volume create $${PROJECT}_certbot_certs >/dev/null && \
+	docker volume create $${PROJECT}_certbot_www   >/dev/null && \
+	docker run --rm \
+		-p 80:80 \
+		-v $${PROJECT}_certbot_certs:/etc/letsencrypt \
+		-v $${PROJECT}_certbot_www:/var/www/certbot \
+		certbot/certbot:latest \
+		certonly --standalone --agree-tos --no-eff-email --non-interactive \
 		--email $$(grep LAR_CERTBOT_EMAIL .env.prod | cut -d= -f2) \
 		-d xn--larpadronizao-7eb3d.com.br \
 		-d www.xn--larpadronizao-7eb3d.com.br
