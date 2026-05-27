@@ -308,6 +308,9 @@ services:
     restart: always
     expose:
       - "3306"
+    ports:
+      # Acessível apenas pelo loopback do host (para SSH tunnel). Nunca da internet.
+      - "127.0.0.1:3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${APP_DB_USER:-app}
