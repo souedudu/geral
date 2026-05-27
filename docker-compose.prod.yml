@@ -22,8 +22,8 @@ services:
     volumes:
       - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
       - ./docker/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
-      - lar_public:/var/www/lar:ro
-      - restaurante_public:/var/www/restaurante:ro
+      - lar_public:/var/www/lar/public:ro
+      - restaurante_public:/var/www/restaurante/public:ro
       - restaurante_frontend_dist:/var/www/restaurante_frontend:ro
       - certbot_certs:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
