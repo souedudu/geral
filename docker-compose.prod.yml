@@ -357,6 +357,10 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
     deploy:
       resources:
         limits:
