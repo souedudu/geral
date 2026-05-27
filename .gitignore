@@ -1,0 +1,12 @@
+# Variáveis sensíveis de produção (NÃO commitar)
+.env.prod
+lar/.env.prod
+restaurante/.env.prod
+
+# Locais (dev)
+.env.local
+*/.env.local
+
+# Logs / cache locais
+*.log
+.DS_Store
