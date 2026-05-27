@@ -74,6 +74,7 @@ services:
       - lar_storage:/var/www/storage
       - lar_bootstrap_cache:/var/www/bootstrap/cache
       - lar_public:/var/www/public
+      - ./lar/.env.prod:/var/www/.env:ro
     depends_on:
       mysql:
         condition: service_healthy
@@ -115,6 +116,7 @@ services:
     volumes:
       - lar_storage:/var/www/storage
       - lar_bootstrap_cache:/var/www/bootstrap/cache
+      - ./lar/.env.prod:/var/www/.env:ro
     command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600 --backoff=5
     depends_on:
       - lar_app
@@ -146,6 +148,7 @@ services:
     volumes:
       - lar_storage:/var/www/storage
       - lar_bootstrap_cache:/var/www/bootstrap/cache
+      - ./lar/.env.prod:/var/www/.env:ro
     command: sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
     depends_on:
       - lar_app
@@ -181,6 +184,7 @@ services:
       - restaurante_storage:/var/www/storage
       - restaurante_bootstrap_cache:/var/www/bootstrap/cache
       - restaurante_public:/var/www/public
+      - ./restaurante/.env.prod:/var/www/.env:ro
     depends_on:
       mysql:
         condition: service_healthy
@@ -223,6 +227,7 @@ services:
     volumes:
       - restaurante_storage:/var/www/storage
       - restaurante_bootstrap_cache:/var/www/bootstrap/cache
+      - ./restaurante/.env.prod:/var/www/.env:ro
     depends_on:
       - restaurante_app
       - redis
@@ -253,6 +258,7 @@ services:
     volumes:
       - restaurante_storage:/var/www/storage
       - restaurante_bootstrap_cache:/var/www/bootstrap/cache
+      - ./restaurante/.env.prod:/var/www/.env:ro
     command: sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
     depends_on:
       - restaurante_app
