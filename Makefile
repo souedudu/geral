@@ -3,7 +3,7 @@
         prod-build prod-restart prod-ps prod-logs prod-pull prod-update \
         prod-migrate prod-cache prod-setup-lar prod-setup-restaurante \
         prod-shell-lar prod-shell-restaurante prod-shell-mysql \
-        prod-horizon-restart prod-queue-restart \
+        prod-horizon-restart prod-queue-restart prod-diagnose \
         dev-up dev-down dev-ps dev-logs dev-shell-lar dev-shell-restaurante
 
 PROD := docker compose -f docker-compose.prod.yml --env-file .env.prod
@@ -190,6 +190,67 @@ prod-shell-restaurante: ## Shell no restaurante_app
 
 prod-shell-mysql: ## Shell no MySQL
 	$(PROD) exec mysql mysql -uroot -p$$(grep MYSQL_ROOT_PASSWORD .env.prod | cut -d= -f2)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DIAGNÓSTICO
+# ═══════════════════════════════════════════════════════════════════════════
+
+prod-diagnose: ## Diagnóstico completo da stack em produção
+	@echo ""
+	@echo "$(C)════════════════════════════════════════════════════════$(N)"
+	@echo "$(C) DIAGNÓSTICO — $(shell date '+%Y-%m-%d %H:%M:%S')$(N)"
+	@echo "$(C)════════════════════════════════════════════════════════$(N)"
+
+	@echo ""
+	@echo "$(Y)▶ Containers$(N)"
+	@$(PROD) ps
+
+	@echo ""
+	@echo "$(Y)▶ Uso de recursos (CPU / Memória)$(N)"
+	@docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" \
+		$$($(PROD) ps -q) 2>/dev/null || echo "  (sem containers rodando)"
+
+	@echo ""
+	@echo "$(Y)▶ Nginx — últimas 30 linhas de log$(N)"
+	@$(PROD) logs --no-log-prefix --tail=30 nginx 2>/dev/null || echo "  container nginx não encontrado"
+
+	@echo ""
+	@echo "$(Y)▶ Lar — últimas 30 linhas de log$(N)"
+	@$(PROD) logs --no-log-prefix --tail=30 lar_app 2>/dev/null || echo "  container lar_app não encontrado"
+
+	@echo ""
+	@echo "$(Y)▶ Lar — PHP-FPM ouvindo?$(N)"
+	@$(PROD) exec lar_app sh -c 'ss -tlnp 2>/dev/null | grep 9000 || netstat -tlnp 2>/dev/null | grep 9000 || echo "  porta 9000 não encontrada"' 2>/dev/null
+
+	@echo ""
+	@echo "$(Y)▶ Lar — últimas 20 linhas do log Laravel$(N)"
+	@$(PROD) exec lar_app sh -c 'tail -n 20 /var/www/lar/storage/logs/laravel.log 2>/dev/null || echo "  log não encontrado"' 2>/dev/null
+
+	@echo ""
+	@echo "$(Y)▶ Restaurante — últimas 30 linhas de log$(N)"
+	@$(PROD) logs --no-log-prefix --tail=30 restaurante_app 2>/dev/null || echo "  container restaurante_app não encontrado"
+
+	@echo ""
+	@echo "$(Y)▶ MySQL — status$(N)"
+	@$(PROD) exec mysql mysqladmin -uroot -p$$(grep MYSQL_ROOT_PASSWORD .env.prod | cut -d= -f2) status 2>/dev/null || echo "  MySQL não respondeu"
+
+	@echo ""
+	@echo "$(Y)▶ Redis — ping$(N)"
+	@$(PROD) exec redis redis-cli -a $$(grep REDIS_PASSWORD .env.prod | cut -d= -f2) ping 2>/dev/null || echo "  Redis não respondeu"
+
+	@echo ""
+	@echo "$(Y)▶ Volumes$(N)"
+	@docker volume ls --filter "name=$$(basename $$(pwd))" 2>/dev/null
+
+	@echo ""
+	@echo "$(Y)▶ Espaço em disco$(N)"
+	@df -h / 2>/dev/null | tail -1
+
+	@echo ""
+	@echo "$(C)════════════════════════════════════════════════════════$(N)"
+	@echo "$(C) FIM DO DIAGNÓSTICO$(N)"
+	@echo "$(C)════════════════════════════════════════════════════════$(N)"
+	@echo ""
 
 # ═══════════════════════════════════════════════════════════════════════════
 # DESENVOLVIMENTO (docker-compose.yml da raiz)
