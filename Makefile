@@ -122,13 +122,23 @@ prod-pull: ## git pull nos três repos (pai + lar + restaurante)
 	git -C $(LAR) pull
 	git -C $(RESTAURANTE) pull
 
-prod-update: prod-pull ## Pull + rebuild + restart + recache (deploy)
+prod-migrate: ## Migrations nos dois apps (lar + restaurante)
+	$(PROD) exec lar_app         php artisan migrate --force
+	$(PROD) exec restaurante_app php artisan migrate --force
+
+prod-seed: ## Seeders nos dois apps (lar + restaurante)
+	$(PROD) exec lar_app         php artisan db:seed --force
+	$(PROD) exec restaurante_app php artisan db:seed --force
+
+prod-update: prod-pull ## Pull + rebuild + migrate + seed + cache (deploy)
 	$(PROD) up -d --build
 	$(PROD) exec lar_app         php artisan migrate --force
+	$(PROD) exec lar_app         php artisan db:seed --force
 	$(PROD) exec lar_app         php artisan config:cache
 	$(PROD) exec lar_app         php artisan route:cache
 	$(PROD) exec lar_app         php artisan view:cache
 	$(PROD) exec restaurante_app php artisan migrate --force
+	$(PROD) exec restaurante_app php artisan db:seed --force
 	$(PROD) exec restaurante_app php artisan config:cache
 	$(PROD) exec restaurante_app php artisan route:cache
 	$(PROD) exec restaurante_app php artisan view:cache
