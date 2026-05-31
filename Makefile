@@ -131,7 +131,6 @@ prod-seed: ## Seeders nos dois apps (lar + restaurante)
 	$(PROD) exec restaurante_app php artisan db:seed --force
 
 prod-update: prod-pull ## Pull + rebuild + migrate + seed + cache (deploy)
-	$(PROD) up -d --build
 	$(PROD) exec lar_app         php artisan migrate --force
 	$(PROD) exec lar_app         php artisan db:seed --force
 	$(PROD) exec lar_app         php artisan config:cache
