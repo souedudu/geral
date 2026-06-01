@@ -3,7 +3,9 @@
     "allow": [
       "PowerShell(wsl -d Ubuntu -- ls -la /home/dudu/www/sistemas/lar/src/database/migrations/2025_04_11_000001_create_session_expenses_table.php)",
       "PowerShell(wsl -d Ubuntu -- ls -ld /home/dudu/www/sistemas/lar/src/database/migrations)",
-      "PowerShell(wsl -d Ubuntu -- sudo chown dudu:dudu /home/dudu/www/sistemas/lar/src/database/migrations /home/dudu/www/sistemas/lar/src/database/migrations/2025_04_11_000001_create_session_expenses_table.php)"
+      "PowerShell(wsl -d Ubuntu -- sudo chown dudu:dudu /home/dudu/www/sistemas/lar/src/database/migrations /home/dudu/www/sistemas/lar/src/database/migrations/2025_04_11_000001_create_session_expenses_table.php)",
+      "Bash(wsl.exe -d Ubuntu -- bash -lc 'docker exec lar_app composer show 2>/dev/null | grep -iE \"pdf|dompdf|snappy|mpdf|browsershot\"')",
+      "Bash(wsl.exe -d Ubuntu -- bash -lc 'docker exec lar_app cat /var/www/lar/composer.json | grep -A50 \"\\\\\"require\\\\\":\"')"
     ]
   }
 }
