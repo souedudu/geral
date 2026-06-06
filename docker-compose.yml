@@ -7,10 +7,12 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./lar/src:/var/www/lar
       - ./restaurante/backend:/var/www/restaurante
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
     depends_on:
       - lar_app
       - restaurante_app
