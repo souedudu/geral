@@ -3,7 +3,7 @@
 Servidor único, Linux com Docker. Um nginx serve os dois sistemas:
 
 - **lar** → HTTPS em `larpadronização.com.br` (`xn--larpadronizao-7eb3d.com.br`) com cert Let's Encrypt
-- **restaurante** → HTTP no IP `143.95.213.17`, multi-tenant via `sslip.io` (ex.: `demo.143.95.213.17.sslip.io`)
+- **restaurante** → HTTPS em `bravopdv.com.br`, multi-tenant via subdomínio (ex.: `demo.bravopdv.com.br`) com cert Let's Encrypt **wildcard**
 
 ---
 
@@ -18,11 +18,14 @@ sudo usermod -aG docker $USER
 docker --version && docker compose version
 ```
 
-DNS do `lar` deve apontar para o IP do servidor antes de pedir o cert:
+DNS do `lar` e do `restaurante` deve apontar para o IP do servidor antes de pedir os certs.
+O restaurante é multi-tenant por subdomínio, então precisa de um registro **wildcard**:
 
 ```
 A   xn--larpadronizao-7eb3d.com.br      → 143.95.213.17
 A   www.xn--larpadronizao-7eb3d.com.br  → 143.95.213.17
+A   bravopdv.com.br                     → 143.95.213.17
+A   *.bravopdv.com.br                   → 143.95.213.17
 ```
 
 Firewall: liberar portas **80** e **443** (apenas).
@@ -116,18 +119,29 @@ Se o nginx falhar por causa dos paths `ssl_certificate` faltando, gere certifica
 # Para o nginx temporariamente
 docker compose -f docker-compose.prod.yml stop nginx
 
-# Cert inicial (standalone, ocupa a porta 80)
+# Cert inicial do LAR (standalone, ocupa a porta 80)
 docker compose -f docker-compose.prod.yml run --rm --service-ports certbot \
   certonly --standalone \
   --email seu-email@dominio.com.br --agree-tos --no-eff-email \
   -d xn--larpadronizao-7eb3d.com.br \
   -d www.xn--larpadronizao-7eb3d.com.br
 
+# Cert do RESTAURANTE — WILDCARD (*.bravopdv.com.br) exige desafio DNS-01.
+# O certbot vai pausar e pedir para criar um registro TXT _acme-challenge no DNS.
+docker compose -f docker-compose.prod.yml run --rm certbot \
+  certonly --manual --preferred-challenges dns \
+  --email seu-email@dominio.com.br --agree-tos --no-eff-email \
+  -d bravopdv.com.br \
+  -d '*.bravopdv.com.br'
+
 # Sobe nginx (agora os certs existem)
 docker compose -f docker-compose.prod.yml up -d nginx
 ```
 
-Depois disso o serviço `certbot` (que já está no compose) faz a renovação automática a cada 12h via webroot, sem downtime.
+Depois disso o serviço `certbot` (que já está no compose) renova automaticamente a cada 12h.
+O cert do **lar** renova via webroot sem downtime. O wildcard do **restaurante** (DNS-01 manual)
+não renova sozinho via webroot — reemita-o pelo mesmo comando acima quando aproximar do vencimento,
+ou configure um plugin DNS do seu provedor (ex.: `certbot-dns-cloudflare`) para renovação automática.
 
 ---
 
@@ -158,11 +172,11 @@ curl -I https://xn--larpadronizao-7eb3d.com.br/healthz
 # → 200 OK
 
 # Restaurante (frontend)
-curl -I http://143.95.213.17/
+curl -I https://bravopdv.com.br/
 # → 200 OK, index.html do Vite
 
-# Restaurante (tenant via sslip.io) — cadastre o tenant "demo" no banco antes
-curl -I http://demo.143.95.213.17.sslip.io/
+# Restaurante (tenant via subdomínio) — cadastre o tenant "demo" no banco antes
+curl -I https://demo.bravopdv.com.br/
 ```
 
 Cadastre tenants do restaurante via tinker:
@@ -233,7 +247,7 @@ ssh -L 3306:127.0.0.1:3306 user@143.95.213.17 \
 │   ├── mysql/init.prod.sql        # cria DBs lar + restaurante e grants
 │   └── nginx/
 │       ├── nginx.prod.conf        # nginx global
-│       └── prod.conf              # vhosts (lar HTTPS + restaurante sslip.io)
+│       └── prod.conf              # vhosts (lar HTTPS + restaurante HTTPS bravopdv.com.br)
 ├── lar/
 │   ├── .env.prod.example          # (já existia)
 │   └── docker/                    # Dockerfile.prod já existia
@@ -261,9 +275,9 @@ ssh -L 3306:127.0.0.1:3306 user@143.95.213.17 \
    docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
    ```
 
-3. **Cookies entre subdomínios sslip.io**: o `restaurante/.env.prod.example` já define `SESSION_DOMAIN=.143.95.213.17.sslip.io` para o Sanctum funcionar entre tenants. Se mudar para domínio próprio depois, atualize.
+3. **Cookies entre subdomínios**: o `restaurante/.env.prod.example` define `SESSION_DOMAIN=.bravopdv.com.br` e `SANCTUM_STATEFUL_DOMAINS=bravopdv.com.br,*.bravopdv.com.br` para o Sanctum funcionar entre os tenants. Como agora é HTTPS, `SESSION_SECURE_COOKIE=true`.
 
-4. **Sem HTTPS no restaurante** por enquanto (sslip.io não vem com cert). Para HTTPS você precisa de um domínio próprio (com DNS wildcard) — aí dá pra usar Let's Encrypt DNS-01 challenge.
+4. **HTTPS no restaurante usa cert wildcard** (`*.bravopdv.com.br`), emitido via Let's Encrypt **DNS-01** (ver passo do certbot acima). O wildcard não renova por webroot — reemita perto do vencimento ou use um plugin DNS para automatizar.
 
 5. **`restaurante_frontend_build` aparece "exited"** — é por design. Ele roda, exporta o build, e morre. Para rebuildar o frontend após mudanças:
    ```bash

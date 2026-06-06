@@ -1,6 +1,6 @@
 # =====================================================================
 # Stack unificada — PRODUÇÃO
-# Sobe lar (HTTPS) + restaurante (HTTP via IP + sslip.io) num único host.
+# Sobe lar (HTTPS) + restaurante (HTTPS em bravopdv.com.br) num único host.
 #
 # Uso:
 #   cp .env.prod.example                 .env.prod
@@ -383,7 +383,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ─── Certbot (HTTPS para o lar) ─────────────────────────
+  # ─── Certbot (HTTPS para lar e restaurante) ─────────────
   certbot:
     image: certbot/certbot:latest
     container_name: stack_certbot
