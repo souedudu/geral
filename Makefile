@@ -156,7 +156,7 @@ prod-cache-clear: ## Limpa todos os caches dos dois apps
 prod-horizon-restart: ## Reinicia o Horizon (restaurante)
 	$(PROD) exec restaurante_app php artisan horizon:terminate
 	$(PROD) restart restaurante_horizon
-f
+
 prod-queue-restart: ## Reinicia os workers de fila do lar
 	$(PROD) exec lar_app php artisan queue:restart
 	$(PROD) restart lar_queue
