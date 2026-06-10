@@ -1,6 +1,6 @@
 .PHONY: help \
         prod-clone prod-env prod-key prod-cert prod-install prod-up prod-down \
-        prod-build prod-restart prod-ps prod-logs prod-pull prod-update \
+        prod-build prod-restart prod-ps prod-logs prod-pull prod-update prod-deploy \
         prod-migrate prod-cache prod-setup-lar prod-setup-restaurante \
         prod-shell-lar prod-shell-restaurante prod-shell-mysql \
         prod-horizon-restart prod-queue-restart prod-diagnose \
@@ -142,6 +142,18 @@ prod-update: prod-pull ## Pull + rebuild + migrate + seed + cache (deploy)
 	$(PROD) exec restaurante_app php artisan route:cache
 	$(PROD) exec restaurante_app php artisan view:cache
 	@echo "$(G)Deploy concluído.$(N)"
+
+prod-deploy: prod-pull ## Deploy na ordem certa: pull -> build (com cache) -> migrate -> cache (SEM seed)
+	$(PROD) up -d --build
+	$(PROD) exec lar_app         php artisan migrate --force
+	$(PROD) exec lar_app         php artisan config:cache
+	$(PROD) exec lar_app         php artisan route:cache
+	$(PROD) exec lar_app         php artisan view:cache
+	$(PROD) exec restaurante_app php artisan migrate --force
+	$(PROD) exec restaurante_app php artisan config:cache
+	$(PROD) exec restaurante_app php artisan route:cache
+	$(PROD) exec restaurante_app php artisan view:cache
+	@echo "$(G)Deploy concluído (pull -> build -> migrate -> cache, sem seed).$(N)"
 
 prod-cache-clear: ## Limpa todos os caches dos dois apps
 	$(PROD) exec lar_app         php artisan cache:clear
