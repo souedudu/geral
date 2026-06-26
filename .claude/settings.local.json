@@ -7,7 +7,9 @@
       "Bash(wsl.exe -d Ubuntu -- bash -lc 'docker exec lar_app composer show 2>/dev/null | grep -iE \"pdf|dompdf|snappy|mpdf|browsershot\"')",
       "Bash(wsl.exe -d Ubuntu -- bash -lc 'docker exec lar_app cat /var/www/lar/composer.json | grep -A50 \"\\\\\"require\\\\\":\"')",
       "Bash(cd \"\\\\\\\\wsl.localhost\\\\Ubuntu\\\\home\\\\dudu\\\\www\\\\sistemas\\\\lar\")",
-      "Bash(docker exec *)"
+      "Bash(docker exec *)",
+      "Bash(git -C lar rev-parse --is-inside-work-tree)",
+      "Bash(git -C restaurante rev-parse --is-inside-work-tree)"
     ]
   }
 }

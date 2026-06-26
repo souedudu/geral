@@ -2,6 +2,7 @@
 .env.prod
 lar/.env.prod
 restaurante/.env.prod
+associadas/.env.prod
 
 # Locais (dev)
 .env.local

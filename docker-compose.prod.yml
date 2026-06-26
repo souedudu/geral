@@ -25,12 +25,14 @@ services:
       - lar_public:/var/www/lar/public:ro
       - restaurante_public:/var/www/restaurante/public:ro
       - restaurante_frontend_dist:/var/www/restaurante_frontend:ro
+      - associadas_public:/var/www/associadas/public:ro
       - certbot_certs:/etc/letsencrypt:ro
       - certbot_www:/var/www/certbot:ro
     depends_on:
       - lar_app
       - restaurante_app
       - restaurante_frontend_build
+      - associadas_app
     networks:
       - stack
     security_opt:
@@ -301,6 +303,118 @@ services:
     networks:
       - stack
 
+  # ─── Associadas (php-fpm prod) ──────────────────────────
+  associadas_app:
+    build:
+      context: ./associadas
+      dockerfile: docker/php/Dockerfile.prod
+    image: associadas_app:prod
+    container_name: associadas_app
+    restart: always
+    working_dir: /var/www
+    env_file: ./associadas/.env.prod
+    environment:
+      - PHP_OPCACHE_ENABLE=1
+    volumes:
+      - associadas_storage:/var/www/storage
+      - associadas_bootstrap_cache:/var/www/bootstrap/cache
+      - associadas_public:/var/www/public
+      - ./associadas/.env.prod:/var/www/.env:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - stack
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD-SHELL", "php-fpm -t || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ─── Associadas queue worker ────────────────────────────
+  associadas_queue:
+    image: associadas_app:prod
+    container_name: associadas_queue
+    restart: always
+    working_dir: /var/www
+    env_file: ./associadas/.env.prod
+    volumes:
+      - associadas_storage:/var/www/storage
+      - associadas_bootstrap_cache:/var/www/bootstrap/cache
+      - ./associadas/.env.prod:/var/www/.env:ro
+    command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600 --backoff=5
+    depends_on:
+      - associadas_app
+      - redis
+    networks:
+      - stack
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Associadas scheduler ───────────────────────────────
+  associadas_scheduler:
+    image: associadas_app:prod
+    container_name: associadas_scheduler
+    restart: always
+    working_dir: /var/www
+    env_file: ./associadas/.env.prod
+    volumes:
+      - associadas_storage:/var/www/storage
+      - associadas_bootstrap_cache:/var/www/bootstrap/cache
+      - ./associadas/.env.prod:/var/www/.env:ro
+    command: sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
+    depends_on:
+      - associadas_app
+      - redis
+    networks:
+      - stack
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # ─── MySQL compartilhado ────────────────────────────────
   mysql:
     image: mysql:8.4
@@ -491,6 +605,9 @@ volumes:
   restaurante_bootstrap_cache:
   restaurante_public:
   restaurante_frontend_dist:
+  associadas_storage:
+  associadas_bootstrap_cache:
+  associadas_public:
   certbot_certs:
   certbot_www:
   evolution_instances:

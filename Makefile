@@ -1,18 +1,20 @@
 .PHONY: help \
-        prod-clone prod-env prod-key prod-cert prod-install prod-up prod-down \
+        prod-clone prod-env prod-key prod-cert prod-cert-associadas prod-install prod-up prod-down \
         prod-build prod-restart prod-ps prod-logs prod-pull prod-update prod-deploy \
-        prod-migrate prod-cache prod-setup-lar prod-setup-restaurante \
-        prod-shell-lar prod-shell-restaurante prod-shell-mysql \
-        prod-horizon-restart prod-queue-restart prod-diagnose \
-        dev-up dev-down dev-ps dev-logs dev-shell-lar dev-shell-restaurante
+        prod-migrate prod-cache prod-setup-lar prod-setup-restaurante prod-setup-associadas \
+        prod-shell-lar prod-shell-restaurante prod-shell-associadas prod-shell-mysql \
+        prod-horizon-restart prod-queue-restart prod-queue-restart-associadas prod-diagnose \
+        dev-up dev-down dev-ps dev-logs dev-shell-lar dev-shell-restaurante dev-shell-associadas
 
 PROD := docker compose -f docker-compose.prod.yml --env-file .env.prod
 DEV  := docker compose
 
 LAR         := lar
 RESTAURANTE := restaurante
+ASSOCIADAS  := associadas
 LAR_REPO    := https://github.com/souedudu/lar.git
 REST_REPO   := https://github.com/souedudu/restaurante.git
+ASSOC_REPO  := https://github.com/souedudu/associadas.git
 
 # ─── Cores ──────────────────────────────────────────────────────────────────
 C  := \033[36m   # cyan
@@ -29,26 +31,32 @@ help: ## Mostra esta ajuda
 # PRODUÇÃO — instalação do zero
 # ═══════════════════════════════════════════════════════════════════════════
 
-prod-clone: ## Clona lar/ e restaurante/ (repos separados dentro deste repo pai)
+prod-clone: ## Clona lar/, restaurante/ e associadas/ (repos separados dentro deste repo pai)
 	@echo "$(Y)Clonando lar...$(N)"
 	@test -d $(LAR)/.git || git clone $(LAR_REPO) $(LAR)
 	@echo "$(Y)Clonando restaurante...$(N)"
 	@test -d $(RESTAURANTE)/.git || git clone $(REST_REPO) $(RESTAURANTE)
+	@echo "$(Y)Clonando associadas...$(N)"
+	@test -d $(ASSOCIADAS)/.git || git clone $(ASSOC_REPO) $(ASSOCIADAS)
 	@echo "$(G)Repos prontos.$(N)"
 
 prod-env: ## Copia os .env.prod.example → .env.prod (não sobrescreve se já existir)
 	@test -f .env.prod              || (cp .env.prod.example .env.prod             && echo "$(G)Criado .env.prod$(N)")
 	@test -f $(LAR)/.env.prod       || (cp $(LAR)/.env.prod.example $(LAR)/.env.prod && echo "$(G)Criado lar/.env.prod$(N)")
 	@test -f $(RESTAURANTE)/.env.prod || (cp $(RESTAURANTE)/.env.prod.example $(RESTAURANTE)/.env.prod && echo "$(G)Criado restaurante/.env.prod$(N)")
-	@echo "$(Y)Edite os três arquivos .env.prod com senhas reais antes de continuar.$(N)"
+	@test -f $(ASSOCIADAS)/.env.prod || (cp $(ASSOCIADAS)/.env.prod.example $(ASSOCIADAS)/.env.prod && echo "$(G)Criado associadas/.env.prod$(N)")
+	@echo "$(Y)Edite os quatro arquivos .env.prod com senhas reais antes de continuar.$(N)"
 	@echo "  nano .env.prod"
 	@echo "  nano lar/.env.prod"
 	@echo "  nano restaurante/.env.prod"
+	@echo "  nano associadas/.env.prod"
 
-prod-key: ## Gera APP_KEY para lar e restaurante (imprime na tela — cole no .env.prod)
+prod-key: ## Gera APP_KEY para lar, restaurante e associadas (imprime na tela — cole no .env.prod)
 	@echo "$(C)--- LAR APP_KEY ---$(N)"
 	@docker run --rm php:8.4-cli php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"
 	@echo "$(C)--- RESTAURANTE APP_KEY ---$(N)"
+	@docker run --rm php:8.4-cli php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"
+	@echo "$(C)--- ASSOCIADAS APP_KEY ---$(N)"
 	@docker run --rm php:8.4-cli php -r "echo 'base64:'.base64_encode(random_bytes(32)).PHP_EOL;"
 	@echo "$(Y)Cole cada valor em APP_KEY= do respectivo .env.prod$(N)"
 
@@ -68,6 +76,23 @@ prod-cert: ## Emite certificado TLS via Certbot (Let's Encrypt) para o domínio 
 		--email $$(grep LAR_CERTBOT_EMAIL .env.prod | cut -d= -f2) \
 		-d xn--larpadronizao-7eb3d.com.br \
 		-d www.xn--larpadronizao-7eb3d.com.br
+
+prod-cert-associadas: ## Emite certificado TLS via Certbot (Let's Encrypt) para o domínio do associadas
+	@echo "$(Y)Confirme que o DNS lobascomproposito.com.br aponta para este IP antes de continuar.$(N)"
+	@echo "$(Y)A porta 80 NÃO pode estar em uso (pare o nginx se já subiu): make prod-down$(N)"
+	@read -p "Continuar? [s/N] " ok; [ "$$ok" = "s" ] || exit 1
+	@PROJECT=$$(basename $$(pwd)) && \
+	docker volume create $${PROJECT}_certbot_certs >/dev/null && \
+	docker volume create $${PROJECT}_certbot_www   >/dev/null && \
+	docker run --rm \
+		-p 80:80 \
+		-v $${PROJECT}_certbot_certs:/etc/letsencrypt \
+		-v $${PROJECT}_certbot_www:/var/www/certbot \
+		certbot/certbot:latest \
+		certonly --standalone --agree-tos --no-eff-email --non-interactive \
+		--email $$(grep ASSOCIADAS_CERTBOT_EMAIL .env.prod | cut -d= -f2) \
+		-d lobascomproposito.com.br \
+		-d www.lobascomproposito.com.br
 
 prod-db-up: ## Sobe apenas MySQL e Redis (usado antes do primeiro build)
 	$(PROD) up -d mysql redis
@@ -98,13 +123,22 @@ prod-setup-restaurante: ## Migrations, storage:link, caches e horizon do restaur
 	$(PROD) exec restaurante_app php artisan horizon:install
 	@echo "$(G)Restaurante configurado.$(N)"
 
-prod-install: prod-clone prod-env prod-key prod-db-up prod-cert prod-up prod-setup-lar prod-setup-restaurante ## Instalação completa do zero
+prod-setup-associadas: ## Migrations, storage:link e caches do associadas
+	$(PROD) exec associadas_app php artisan migrate --force
+	$(PROD) exec associadas_app php artisan storage:link
+	$(PROD) exec associadas_app php artisan config:cache
+	$(PROD) exec associadas_app php artisan route:cache
+	$(PROD) exec associadas_app php artisan view:cache
+	@echo "$(G)Associadas configurado.$(N)"
+
+prod-install: prod-clone prod-env prod-key prod-db-up prod-cert prod-cert-associadas prod-up prod-setup-lar prod-setup-restaurante prod-setup-associadas ## Instalação completa do zero
 	@echo ""
 	@echo "$(G)════════════════════════════════════════$(N)"
 	@echo "$(G) Stack em produção — instalação concluída$(N)"
 	@echo "$(G)════════════════════════════════════════$(N)"
 	@echo " Lar:         https://xn--larpadronizao-7eb3d.com.br"
 	@echo " Restaurante: http://demo.143.95.213.17.sslip.io"
+	@echo " Associadas:  https://lobascomproposito.com.br"
 	@$(MAKE) prod-ps
 
 # ─── Tenant inicial do restaurante ─────────────────────────────────────────
@@ -117,18 +151,21 @@ prod-tenant: ## Cria tenant inicial no restaurante (TENANT=slug EX: make prod-te
 # PRODUÇÃO — operações do dia a dia
 # ═══════════════════════════════════════════════════════════════════════════
 
-prod-pull: ## git pull nos três repos (pai + lar + restaurante)
+prod-pull: ## git pull nos quatro repos (pai + lar + restaurante + associadas)
 	git pull
 	git -C $(LAR) pull
 	git -C $(RESTAURANTE) pull
+	git -C $(ASSOCIADAS) pull
 
-prod-migrate: ## Migrations nos dois apps (lar + restaurante)
+prod-migrate: ## Migrations nos três apps (lar + restaurante + associadas)
 	$(PROD) exec lar_app         php artisan migrate --force
 	$(PROD) exec restaurante_app php artisan migrate --force
+	$(PROD) exec associadas_app  php artisan migrate --force
 
-prod-seed: ## Seeders nos dois apps (lar + restaurante)
+prod-seed: ## Seeders nos três apps (lar + restaurante + associadas)
 	$(PROD) exec lar_app         php artisan db:seed --force
 	$(PROD) exec restaurante_app php artisan db:seed --force
+	$(PROD) exec associadas_app  php artisan db:seed --force
 
 prod-update: prod-pull ## Pull + rebuild + migrate + seed + cache (deploy)
 	$(PROD) exec lar_app         php artisan migrate --force
@@ -141,6 +178,11 @@ prod-update: prod-pull ## Pull + rebuild + migrate + seed + cache (deploy)
 	$(PROD) exec restaurante_app php artisan config:cache
 	$(PROD) exec restaurante_app php artisan route:cache
 	$(PROD) exec restaurante_app php artisan view:cache
+	$(PROD) exec associadas_app  php artisan migrate --force
+	$(PROD) exec associadas_app  php artisan db:seed --force
+	$(PROD) exec associadas_app  php artisan config:cache
+	$(PROD) exec associadas_app  php artisan route:cache
+	$(PROD) exec associadas_app  php artisan view:cache
 	@echo "$(G)Deploy concluído.$(N)"
 
 prod-deploy: prod-pull ## Deploy na ordem certa: pull -> build (com cache) -> migrate -> cache (SEM seed)
@@ -153,9 +195,13 @@ prod-deploy: prod-pull ## Deploy na ordem certa: pull -> build (com cache) -> mi
 	$(PROD) exec restaurante_app php artisan config:cache
 	$(PROD) exec restaurante_app php artisan route:cache
 	$(PROD) exec restaurante_app php artisan view:cache
+	$(PROD) exec associadas_app  php artisan migrate --force
+	$(PROD) exec associadas_app  php artisan config:cache
+	$(PROD) exec associadas_app  php artisan route:cache
+	$(PROD) exec associadas_app  php artisan view:cache
 	@echo "$(G)Deploy concluído (pull -> build -> migrate -> cache, sem seed).$(N)"
 
-prod-cache-clear: ## Limpa todos os caches dos dois apps
+prod-cache-clear: ## Limpa todos os caches dos três apps
 	$(PROD) exec lar_app         php artisan cache:clear
 	$(PROD) exec lar_app         php artisan config:clear
 	$(PROD) exec lar_app         php artisan route:clear
@@ -164,6 +210,10 @@ prod-cache-clear: ## Limpa todos os caches dos dois apps
 	$(PROD) exec restaurante_app php artisan config:clear
 	$(PROD) exec restaurante_app php artisan route:clear
 	$(PROD) exec restaurante_app php artisan view:clear
+	$(PROD) exec associadas_app  php artisan cache:clear
+	$(PROD) exec associadas_app  php artisan config:clear
+	$(PROD) exec associadas_app  php artisan route:clear
+	$(PROD) exec associadas_app  php artisan view:clear
 
 prod-horizon-restart: ## Reinicia o Horizon (restaurante)
 	$(PROD) exec restaurante_app php artisan horizon:terminate
@@ -172,6 +222,10 @@ prod-horizon-restart: ## Reinicia o Horizon (restaurante)
 prod-queue-restart: ## Reinicia os workers de fila do lar
 	$(PROD) exec lar_app php artisan queue:restart
 	$(PROD) restart lar_queue
+
+prod-queue-restart-associadas: ## Reinicia os workers de fila do associadas
+	$(PROD) exec associadas_app php artisan queue:restart
+	$(PROD) restart associadas_queue
 
 prod-restart: ## Reinicia todos os containers
 	$(PROD) restart
@@ -191,6 +245,9 @@ prod-logs-lar: ## Logs do lar_app
 prod-logs-restaurante: ## Logs do restaurante_app
 	$(PROD) logs -f restaurante_app
 
+prod-logs-associadas: ## Logs do associadas_app
+	$(PROD) logs -f associadas_app
+
 prod-logs-nginx: ## Logs do nginx
 	$(PROD) logs -f nginx
 
@@ -199,6 +256,9 @@ prod-shell-lar: ## Shell no lar_app
 
 prod-shell-restaurante: ## Shell no restaurante_app
 	$(PROD) exec restaurante_app bash
+
+prod-shell-associadas: ## Shell no associadas_app
+	$(PROD) exec associadas_app bash
 
 prod-shell-mysql: ## Shell no MySQL
 	$(PROD) exec mysql mysql -uroot -p$$(grep MYSQL_ROOT_PASSWORD .env.prod | cut -d= -f2)
@@ -241,6 +301,10 @@ prod-diagnose: ## Diagnóstico completo da stack em produção
 	@echo ""
 	@echo "$(Y)▶ Restaurante — últimas 30 linhas de log$(N)"
 	@$(PROD) logs --no-log-prefix --tail=30 restaurante_app 2>/dev/null || echo "  container restaurante_app não encontrado"
+
+	@echo ""
+	@echo "$(Y)▶ Associadas — últimas 30 linhas de log$(N)"
+	@$(PROD) logs --no-log-prefix --tail=30 associadas_app 2>/dev/null || echo "  container associadas_app não encontrado"
 
 	@echo ""
 	@echo "$(Y)▶ MySQL — status$(N)"
@@ -289,8 +353,14 @@ dev-shell-lar: ## Shell no lar_app (dev)
 dev-shell-restaurante: ## Shell no restaurante_app (dev)
 	$(DEV) exec restaurante_app bash
 
+dev-shell-associadas: ## Shell no associadas_app (dev)
+	$(DEV) exec associadas_app bash
+
 dev-tinker-lar: ## Tinker no lar (dev)
 	$(DEV) exec lar_app php artisan tinker
 
 dev-tinker-restaurante: ## Tinker no restaurante (dev)
 	$(DEV) exec restaurante_app php artisan tinker
+
+dev-tinker-associadas: ## Tinker no associadas (dev)
+	$(DEV) exec associadas_app php artisan tinker
