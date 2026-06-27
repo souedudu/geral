@@ -189,8 +189,14 @@ prod-update: prod-pull ## Pull + rebuild + migrate + seed + cache (deploy)
 	$(PROD) exec associadas_app  php artisan view:cache
 	@echo "$(G)Deploy concluído.$(N)"
 
-prod-deploy: prod-pull ## Deploy na ordem certa: pull -> build (com cache) -> migrate -> cache (SEM seed)
+prod-deploy: prod-pull ## Deploy na ordem certa: pull -> build -> assets -> migrate -> cache (SEM seed)
 	$(PROD) up -d --build
+	docker run --rm -v $(PROJECT)_lar_public:/pub lar_app:prod \
+		sh -c "[ -d /var/www/public/build ] && rm -rf /pub/build && cp -a /var/www/public/build /pub/build || echo 'lar: sem public/build na imagem'"
+	docker run --rm -v $(PROJECT)_restaurante_public:/pub restaurante_app:prod \
+		sh -c "[ -d /var/www/public/build ] && rm -rf /pub/build && cp -a /var/www/public/build /pub/build || echo 'restaurante: sem public/build na imagem'"
+	docker run --rm -v $(PROJECT)_associadas_public:/pub associadas_app:prod \
+		sh -c "[ -d /var/www/public/build ] && rm -rf /pub/build && cp -a /var/www/public/build /pub/build || echo 'associadas: sem public/build na imagem'"
 	$(PROD) exec lar_app         php artisan migrate --force
 	$(PROD) exec lar_app         php artisan config:cache
 	$(PROD) exec lar_app         php artisan route:cache
@@ -204,7 +210,7 @@ prod-deploy: prod-pull ## Deploy na ordem certa: pull -> build (com cache) -> mi
 	$(PROD) exec associadas_app  php artisan route:cache
 	$(PROD) exec associadas_app  php artisan view:cache
 	$(PROD) restart
-	@echo "$(G)Deploy concluído (pull -> build -> migrate -> cache, sem seed).$(N)"
+	@echo "$(G)Deploy concluído (pull -> build -> assets -> migrate -> cache, sem seed).$(N)"
 
 # ─── Deploy por ambiente (separado) ─────────────────────────────────────────
 prod-deploy-lar: ## Deploy só do lar (pull -> build -> assets -> migrate -> cache)
