@@ -1,6 +1,7 @@
 .PHONY: help \
         prod-clone prod-env prod-key prod-cert prod-cert-associadas prod-install prod-up prod-down \
         prod-build prod-restart prod-ps prod-logs prod-pull prod-update prod-deploy \
+        prod-deploy-lar prod-deploy-restaurante prod-deploy-associadas \
         prod-migrate prod-cache prod-setup-lar prod-setup-restaurante prod-setup-associadas \
         prod-shell-lar prod-shell-restaurante prod-shell-associadas prod-shell-mysql \
         prod-horizon-restart prod-queue-restart prod-queue-restart-associadas prod-diagnose \
@@ -199,7 +200,46 @@ prod-deploy: prod-pull ## Deploy na ordem certa: pull -> build (com cache) -> mi
 	$(PROD) exec associadas_app  php artisan config:cache
 	$(PROD) exec associadas_app  php artisan route:cache
 	$(PROD) exec associadas_app  php artisan view:cache
+	$(PROD) restart
 	@echo "$(G)Deploy concluído (pull -> build -> migrate -> cache, sem seed).$(N)"
+
+# ─── Deploy por ambiente (separado) ─────────────────────────────────────────
+prod-deploy-lar: ## Deploy só do lar (pull -> build -> migrate -> cache)
+	git pull
+	git -C $(LAR) pull
+	$(PROD) up -d --build lar_app lar_queue lar_scheduler
+	$(PROD) exec lar_app php artisan migrate --force
+	$(PROD) exec lar_app php artisan config:cache
+	$(PROD) exec lar_app php artisan route:cache
+	$(PROD) exec lar_app php artisan view:cache
+	$(PROD) exec lar_app php artisan queue:restart
+	$(PROD) restart lar_app lar_queue lar_scheduler
+	@echo "$(G)Deploy do lar concluído.$(N)"
+
+prod-deploy-restaurante: ## Deploy só do restaurante (pull -> build app+frontend -> migrate -> cache)
+	git pull
+	git -C $(RESTAURANTE) pull
+	$(PROD) up -d --build restaurante_app restaurante_horizon restaurante_scheduler
+	$(PROD) up -d --build --force-recreate restaurante_frontend_build
+	$(PROD) exec restaurante_app php artisan migrate --force
+	$(PROD) exec restaurante_app php artisan config:cache
+	$(PROD) exec restaurante_app php artisan route:cache
+	$(PROD) exec restaurante_app php artisan view:cache
+	$(PROD) exec restaurante_app php artisan horizon:terminate
+	$(PROD) restart restaurante_app restaurante_horizon restaurante_scheduler
+	@echo "$(G)Deploy do restaurante concluído.$(N)"
+
+prod-deploy-associadas: ## Deploy só do associadas (pull -> build -> migrate -> cache)
+	git pull
+	git -C $(ASSOCIADAS) pull
+	$(PROD) up -d --build associadas_app associadas_queue associadas_scheduler
+	$(PROD) exec associadas_app php artisan migrate --force
+	$(PROD) exec associadas_app php artisan config:cache
+	$(PROD) exec associadas_app php artisan route:cache
+	$(PROD) exec associadas_app php artisan view:cache
+	$(PROD) exec associadas_app php artisan queue:restart
+	$(PROD) restart associadas_app associadas_queue associadas_scheduler
+	@echo "$(G)Deploy do associadas concluído.$(N)"
 
 prod-cache-clear: ## Limpa todos os caches dos três apps
 	$(PROD) exec lar_app         php artisan cache:clear
