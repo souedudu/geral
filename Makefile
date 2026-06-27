@@ -10,6 +10,9 @@
 PROD := docker compose -f docker-compose.prod.yml --env-file .env.prod
 DEV  := docker compose
 
+# Nome do projeto compose (= nome da pasta) — usado p/ resolver volumes nomeados
+PROJECT := $(shell basename $(CURDIR))
+
 LAR         := lar
 RESTAURANTE := restaurante
 ASSOCIADAS  := associadas
@@ -204,22 +207,28 @@ prod-deploy: prod-pull ## Deploy na ordem certa: pull -> build (com cache) -> mi
 	@echo "$(G)Deploy concluído (pull -> build -> migrate -> cache, sem seed).$(N)"
 
 # ─── Deploy por ambiente (separado) ─────────────────────────────────────────
-prod-deploy-lar: ## Deploy só do lar (pull -> build -> migrate -> cache)
+prod-deploy-lar: ## Deploy só do lar (pull -> build -> assets -> migrate -> cache)
 	git pull
 	git -C $(LAR) pull
-	$(PROD) up -d --build lar_app lar_queue lar_scheduler
+	$(PROD) build lar_app
+	docker run --rm -v $(PROJECT)_lar_public:/pub lar_app:prod \
+		sh -c "[ -d /var/www/public/build ] && rm -rf /pub/build && cp -a /var/www/public/build /pub/build || echo 'sem public/build na imagem — nada a copiar'"
+	$(PROD) up -d lar_app lar_queue lar_scheduler
 	$(PROD) exec lar_app php artisan migrate --force
 	$(PROD) exec lar_app php artisan config:cache
 	$(PROD) exec lar_app php artisan route:cache
 	$(PROD) exec lar_app php artisan view:cache
 	$(PROD) exec lar_app php artisan queue:restart
 	$(PROD) restart lar_app lar_queue lar_scheduler
-	@echo "$(G)Deploy do lar concluído.$(N)"
+	@echo "$(G)Deploy do lar concluído (assets do volume public atualizados).$(N)"
 
-prod-deploy-restaurante: ## Deploy só do restaurante (pull -> build app+frontend -> migrate -> cache)
+prod-deploy-restaurante: ## Deploy só do restaurante (pull -> build app+frontend -> assets -> migrate -> cache)
 	git pull
 	git -C $(RESTAURANTE) pull
-	$(PROD) up -d --build restaurante_app restaurante_horizon restaurante_scheduler
+	$(PROD) build restaurante_app
+	docker run --rm -v $(PROJECT)_restaurante_public:/pub restaurante_app:prod \
+		sh -c "[ -d /var/www/public/build ] && rm -rf /pub/build && cp -a /var/www/public/build /pub/build || echo 'sem public/build na imagem — nada a copiar'"
+	$(PROD) up -d restaurante_app restaurante_horizon restaurante_scheduler
 	$(PROD) up -d --build --force-recreate restaurante_frontend_build
 	$(PROD) exec restaurante_app php artisan migrate --force
 	$(PROD) exec restaurante_app php artisan config:cache
@@ -227,19 +236,22 @@ prod-deploy-restaurante: ## Deploy só do restaurante (pull -> build app+fronten
 	$(PROD) exec restaurante_app php artisan view:cache
 	$(PROD) exec restaurante_app php artisan horizon:terminate
 	$(PROD) restart restaurante_app restaurante_horizon restaurante_scheduler
-	@echo "$(G)Deploy do restaurante concluído.$(N)"
+	@echo "$(G)Deploy do restaurante concluído (assets do volume public + frontend SPA atualizados).$(N)"
 
-prod-deploy-associadas: ## Deploy só do associadas (pull -> build -> migrate -> cache)
+prod-deploy-associadas: ## Deploy só do associadas (pull -> build -> assets -> migrate -> cache)
 	git pull
 	git -C $(ASSOCIADAS) pull
-	$(PROD) up -d --build associadas_app associadas_queue associadas_scheduler
+	$(PROD) build associadas_app
+	docker run --rm -v $(PROJECT)_associadas_public:/pub associadas_app:prod \
+		sh -c "[ -d /var/www/public/build ] && rm -rf /pub/build && cp -a /var/www/public/build /pub/build || echo 'sem public/build na imagem — nada a copiar'"
+	$(PROD) up -d associadas_app associadas_queue associadas_scheduler
 	$(PROD) exec associadas_app php artisan migrate --force
 	$(PROD) exec associadas_app php artisan config:cache
 	$(PROD) exec associadas_app php artisan route:cache
 	$(PROD) exec associadas_app php artisan view:cache
 	$(PROD) exec associadas_app php artisan queue:restart
 	$(PROD) restart associadas_app associadas_queue associadas_scheduler
-	@echo "$(G)Deploy do associadas concluído.$(N)"
+	@echo "$(G)Deploy do associadas concluído (assets do volume public atualizados).$(N)"
 
 prod-cache-clear: ## Limpa todos os caches dos três apps
 	$(PROD) exec lar_app         php artisan cache:clear
