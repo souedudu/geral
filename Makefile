@@ -248,8 +248,8 @@ prod-deploy-associadas: ## Deploy só do associadas (pull -> build -> assets -> 
 	git pull
 	git -C $(ASSOCIADAS) pull
 	$(PROD) build associadas_app
-	docker run --rm -v $(PROJECT)_associadas_public:/pub associadas_app:prod \
-		sh -c "[ -d /var/www/public ] && find /pub -mindepth 1 -maxdepth 1 ! -name storage -exec rm -rf {} + && cp -a /var/www/public/. /pub/ && echo 'associadas: public sincronizado (build + images + estáticos)' || echo 'sem public na imagem — nada a copiar'"
+	docker run --rm --user root -v $(PROJECT)_associadas_public:/pub associadas_app:prod \
+		sh -c "[ -d /var/www/public ] && find /pub -mindepth 1 -maxdepth 1 ! -name storage -exec rm -rf {} + && cp -a /var/www/public/. /pub/ && chown -R www-data:www-data /pub && echo 'associadas: public sincronizado (build + images + estáticos)' || { echo 'ERRO: sync do public falhou — site pode estar sem index.php!'; exit 1; }"
 	$(PROD) up -d associadas_app associadas_queue associadas_scheduler
 	$(PROD) exec associadas_app php artisan migrate --force
 	$(PROD) exec associadas_app php artisan config:cache
