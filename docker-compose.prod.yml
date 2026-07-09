@@ -48,7 +48,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 256M
+          memory: 128M
     logging:
       driver: json-file
       options:
@@ -96,7 +96,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 1024M
+          memory: 512M
     logging:
       driver: json-file
       options:
@@ -133,7 +133,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 256M
     logging:
       driver: json-file
       options:
@@ -165,7 +165,7 @@ services:
       resources:
         limits:
           cpus: "0.5"
-          memory: 256M
+          memory: 128M
     logging:
       driver: json-file
       options:
@@ -206,7 +206,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 1024M
+          memory: 512M
     logging:
       driver: json-file
       options:
@@ -243,7 +243,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 256M
     logging:
       driver: json-file
       options:
@@ -275,7 +275,7 @@ services:
       resources:
         limits:
           cpus: "0.5"
-          memory: 256M
+          memory: 128M
     logging:
       driver: json-file
       options:
@@ -339,7 +339,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 1024M
+          memory: 512M
     logging:
       driver: json-file
       options:
@@ -376,7 +376,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 256M
     logging:
       driver: json-file
       options:
@@ -408,7 +408,7 @@ services:
       resources:
         limits:
           cpus: "0.5"
-          memory: 256M
+          memory: 128M
     logging:
       driver: json-file
       options:
@@ -433,8 +433,10 @@ services:
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
-      --max-connections=300
+      --max-connections=50
       --mysql-native-password=ON
+      --performance-schema=OFF
+      --innodb-buffer-pool-size=192M
     networks:
       - stack
     security_opt:
@@ -443,7 +445,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 2048M
+          memory: 640M
     logging:
       driver: json-file
       options:
@@ -466,7 +468,7 @@ services:
       redis-server
       --appendonly yes
       --requirepass ${REDIS_PASSWORD}
-      --maxmemory 512mb
+      --maxmemory 96mb
       --maxmemory-policy allkeys-lru
       --protected-mode yes
     volumes:
@@ -485,7 +487,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 768M
+          memory: 160M
     logging:
       driver: json-file
       options:
@@ -552,7 +554,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 256M
     logging:
       driver: json-file
       options:
@@ -579,7 +581,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 256M
     logging:
       driver: json-file
       options:

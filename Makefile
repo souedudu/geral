@@ -256,7 +256,7 @@ prod-deploy-associadas: ## Deploy só do associadas (pull -> build -> assets -> 
 	$(PROD) exec associadas_app php artisan route:cache
 	$(PROD) exec associadas_app php artisan view:cache
 	$(PROD) exec associadas_app php artisan queue:restart
-	$(PROD) restart associadas_app associadas_queue associadas_scheduler
+	$(PROD) restart
 	@echo "$(G)Deploy do associadas concluído (assets do volume public atualizados).$(N)"
 
 prod-cache-clear: ## Limpa todos os caches dos três apps
