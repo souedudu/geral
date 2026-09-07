@@ -5,7 +5,8 @@
         prod-migrate prod-cache prod-setup-lar prod-setup-restaurante prod-setup-associadas \
         prod-shell-lar prod-shell-restaurante prod-shell-associadas prod-shell-mysql \
         prod-horizon-restart prod-queue-restart prod-queue-restart-associadas prod-diagnose \
-        dev-up dev-down dev-ps dev-logs dev-shell-lar dev-shell-restaurante dev-shell-associadas
+        dev-up dev-down dev-ps dev-logs dev-shell-lar dev-shell-restaurante dev-shell-associadas \
+        backup backup-list backup-verificar backup-restore backup-cron backup-cron-remover
 
 PROD := docker compose -f docker-compose.prod.yml --env-file .env.prod
 DEV  := docker compose
@@ -422,3 +423,35 @@ dev-tinker-restaurante: ## Tinker no restaurante (dev)
 
 dev-tinker-associadas: ## Tinker no associadas (dev)
 	$(DEV) exec associadas_app php artisan tinker
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BACKUP DO BANCO
+# ═══════════════════════════════════════════════════════════════════════════
+# Os dumps vão para ./backups (fora do git). Enquanto BACKUP_REMOTE não estiver
+# definido, o backup mora no MESMO disco do banco e não sobrevive a perda de disco —
+# os scripts avisam isso em toda execução.
+
+backup: ## Backup dos três bancos (BANCO=restaurante para um só)
+	@./scripts/backup-db.sh $(BANCO)
+
+backup-list: ## Lista os backups existentes, do mais novo para o mais antigo
+	@ls -lht backups/*.sql.gz 2>/dev/null || echo "Nenhum backup em ./backups"
+
+backup-verificar: ## Teste de restauração de verdade (BANCO=restaurante por padrão)
+	@./scripts/backup-verificar.sh $(or $(BANCO),restaurante)
+
+backup-restore: ## Restaura um dump (FILE=backups/x.sql.gz BANCO=restaurante)
+	@test -n "$(FILE)"  || (echo "Use: make backup-restore FILE=backups/arquivo.sql.gz BANCO=restaurante"; exit 1)
+	@test -n "$(BANCO)" || (echo "Use: make backup-restore FILE=backups/arquivo.sql.gz BANCO=restaurante"; exit 1)
+	@./scripts/restore-db.sh "$(FILE)" "$(BANCO)"
+
+backup-cron: ## Instala no crontab do host o backup diário às 03:00
+	@( crontab -l 2>/dev/null | grep -v 'scripts/backup-db.sh' ; \
+	   echo "0 3 * * * cd $(CURDIR) && BACKUP_REMOTE=$${BACKUP_REMOTE} ./scripts/backup-db.sh >> $(CURDIR)/backups/backup.log 2>&1" \
+	 ) | crontab -
+	@echo "$(G)Agendado:$(N) backup diário às 03:00 (log em backups/backup.log)"
+	@crontab -l | grep backup-db.sh
+
+backup-cron-remover: ## Remove o backup do crontab do host
+	@crontab -l 2>/dev/null | grep -v 'scripts/backup-db.sh' | crontab -
+	@echo "$(Y)Removido do crontab.$(N)"

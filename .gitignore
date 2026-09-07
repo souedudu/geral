@@ -11,3 +11,6 @@ associadas/.env.prod
 # Logs / cache locais
 *.log
 .DS_Store
+
+# Backups do banco (dumps locais)
+backups/
