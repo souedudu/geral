@@ -2,11 +2,11 @@
         prod-clone prod-env prod-key prod-cert prod-cert-associadas prod-install prod-up prod-down \
         prod-build prod-restart prod-ps prod-logs prod-pull prod-update prod-deploy \
         prod-deploy-lar prod-deploy-restaurante prod-deploy-associadas \
-        prod-migrate prod-cache prod-setup-lar prod-setup-restaurante prod-setup-associadas \
+        prod-migrate prod-seed-planos prod-cache prod-setup-lar prod-setup-restaurante prod-setup-associadas \
         prod-shell-lar prod-shell-restaurante prod-shell-associadas prod-shell-mysql \
         prod-horizon-restart prod-queue-restart prod-queue-restart-associadas prod-diagnose \
         dev-up dev-down dev-ps dev-logs dev-shell-lar dev-shell-restaurante dev-shell-associadas \
-        backup backup-list backup-verificar backup-restore backup-cron backup-cron-remover
+        backup backup-list backup-verificar backup-restore backup-cron backup-cron-remover \n        test test-reset
 
 PROD := docker compose -f docker-compose.prod.yml --env-file .env.prod
 DEV  := docker compose
@@ -166,6 +166,9 @@ prod-migrate: ## Migrations nos três apps (lar + restaurante + associadas)
 	$(PROD) exec lar_app         php artisan migrate --force
 	$(PROD) exec restaurante_app php artisan migrate --force
 	$(PROD) exec associadas_app  php artisan migrate --force
+
+prod-seed-planos: ## Cria os 3 planos comerciais do restaurante (idempotente; não toca em plano existente)
+	$(PROD) exec restaurante_app php artisan db:seed --class=PlanosSeeder --force
 
 prod-seed: ## Seeders nos três apps (lar + restaurante + associadas)
 	$(PROD) exec lar_app         php artisan db:seed --force
@@ -455,3 +458,20 @@ backup-cron: ## Instala no crontab do host o backup diário às 03:00
 backup-cron-remover: ## Remove o backup do crontab do host
 	@crontab -l 2>/dev/null | grep -v 'scripts/backup-db.sh' | crontab -
 	@echo "$(Y)Removido do crontab.$(N)"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TESTES
+# ═══════════════════════════════════════════════════════════════════════════
+# A suíte roda contra MySQL de verdade (as migrations usam ALTER TABLE ... MODIFY
+# ENUM e os relatórios usam FIELD/TIMESTAMPDIFF), num banco descartável chamado
+# restaurante_test. O TestCase recusa rodar em banco que não termine em `_test`.
+
+test: ## Roda a suíte de testes do restaurante (FILTER=NomeDoTeste para um só)
+	@$(DEV) exec -e HOME=/tmp restaurante_app php artisan test $(if $(FILTER),--filter=$(FILTER),)
+
+test-reset: ## Recria o banco de testes do zero (use quando uma execução abortar no meio)
+	@$(DEV) exec mysql sh -c 'mysql -uroot -p"$$MYSQL_ROOT_PASSWORD" -e "\
+	    DROP DATABASE IF EXISTS restaurante_test; \
+	    CREATE DATABASE restaurante_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; \
+	    GRANT ALL PRIVILEGES ON restaurante_test.* TO \"app\"@\"%\"; FLUSH PRIVILEGES;"'
+	@echo "$(G)Banco restaurante_test recriado.$(N)"
