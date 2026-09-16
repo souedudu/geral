@@ -24,6 +24,10 @@ services:
       - ./docker/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
       - lar_public:/var/www/lar/public:ro
       - restaurante_public:/var/www/restaurante/public:ro
+      # O que o painel envia (logo, capa, imagens de produto) mora no volume de
+      # storage, e não no de public. Sem este mount o nginx não tem como servir
+      # /storage/... — ele enxergava só o public e devolvia 404 para toda imagem.
+      - restaurante_storage:/var/www/restaurante/storage:ro
       - restaurante_frontend_dist:/var/www/restaurante_frontend:ro
       - associadas_public:/var/www/associadas/public:ro
       - certbot_certs:/etc/letsencrypt:ro
