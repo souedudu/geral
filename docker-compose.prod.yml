@@ -520,36 +520,34 @@ services:
         max-size: "5m"
         max-file: "3"
 
-  # ─── Evolution API (lar) ────────────────────────────────
+  # ─── Evolution Go (WhatsApp: lar, associadas, restaurante) ─
+  # É a Evolution GO, não a Evolution API v2 (Node): variáveis e rotas são outras.
+  # Licença: ativa sozinha ao subir com EVOLUTION_OPERATOR_EMAIL (e-mail já registrado).
+  # Usa dois bancos no evolution_postgres: ${EVOLUTION_PG_DB} e ${EVOLUTION_PG_DB}_users.
   evolution:
-    image: evoapicloud/evolution-go:latest
+    image: evoapicloud/evolution-go:0.7.2
     container_name: stack_evolution
     restart: always
     expose:
       - "8080"
     environment:
-      SERVER_URL: ${EVOLUTION_SERVER_URL}
       SERVER_PORT: 8080
-      CLIENT_NAME: lar
-      AUTHENTICATION_TYPE: apikey
-      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
-      POSTGRES_HOST: evolution_postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${EVOLUTION_PG_USER}
-      POSTGRES_PASSWORD: ${EVOLUTION_PG_PASSWORD}
-      POSTGRES_DB: ${EVOLUTION_PG_DB}
-      CACHE_REDIS_ENABLED: "true"
-      CACHE_REDIS_URI: redis://:${REDIS_PASSWORD}@redis:6379/3
-      CACHE_REDIS_PREFIX_KEY: evolution
-      LOG_LEVEL: ERROR
-      QRCODE_MAX_COUNT: 40
-      DEL_INSTANCE: "false"
+      CLIENT_NAME: prod
+      GLOBAL_API_KEY: ${EVOLUTION_API_KEY}
+      EVOLUTION_OPERATOR_EMAIL: ${EVOLUTION_OPERATOR_EMAIL}
+      POSTGRES_AUTH_DB: postgresql://${EVOLUTION_PG_USER}:${EVOLUTION_PG_PASSWORD}@evolution_postgres:5432/${EVOLUTION_PG_DB}?sslmode=disable
+      POSTGRES_USERS_DB: postgresql://${EVOLUTION_PG_USER}:${EVOLUTION_PG_PASSWORD}@evolution_postgres:5432/${EVOLUTION_PG_DB}_users?sslmode=disable
+      DATABASE_SAVE_MESSAGES: "false"
+      WADEBUG: WARN
+      LOGTYPE: console
+      CONNECT_ON_STARTUP: "true"
+      AMQP_GLOBAL_ENABLED: "false"
       MINIO_ENABLED: "false"
     networks:
       - stack
     depends_on:
-      - redis
-      - evolution_postgres
+      evolution_postgres:
+        condition: service_healthy
     volumes:
       - evolution_instances:/evolution/instances
     security_opt:
@@ -577,6 +575,7 @@ services:
       POSTGRES_PASSWORD: ${EVOLUTION_PG_PASSWORD}
     volumes:
       - evolution_postgres_data:/var/lib/postgresql/data
+      - ./docker/evolution/init-prod.sh:/docker-entrypoint-initdb.d/init.sh:ro
     networks:
       - stack
     security_opt:

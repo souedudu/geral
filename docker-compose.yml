@@ -188,9 +188,54 @@ services:
     networks:
       - stack
 
+  # ─── Evolution API (WhatsApp) ────────────────────────────
+  # Mesma imagem da produção. Dentro da rede: http://evolution:8080
+  # Do host: http://localhost:8083
+  evolution:
+    image: evoapicloud/evolution-go:0.7.2
+    container_name: stack_evolution
+    restart: unless-stopped
+    ports:
+      - "8083:8080"
+    environment:
+      SERVER_PORT: 8080
+      CLIENT_NAME: dev
+      GLOBAL_API_KEY: ${EVOLUTION_API_KEY:-evolution-dev-key}
+      EVOLUTION_OPERATOR_EMAIL: ${EVOLUTION_OPERATOR_EMAIL:-souedudu@gmail.com}
+      POSTGRES_AUTH_DB: postgresql://evolution:evolution@evolution_postgres:5432/evogo_auth?sslmode=disable
+      POSTGRES_USERS_DB: postgresql://evolution:evolution@evolution_postgres:5432/evogo_users?sslmode=disable
+      DATABASE_SAVE_MESSAGES: "false"
+      WADEBUG: INFO
+      LOGTYPE: console
+      CONNECT_ON_STARTUP: "true"
+      AMQP_GLOBAL_ENABLED: "false"
+      MINIO_ENABLED: "false"
+    depends_on:
+      - evolution_postgres
+    volumes:
+      - evolution_instances:/evolution/instances
+    networks:
+      - stack
+
+  evolution_postgres:
+    image: postgres:16-alpine
+    container_name: stack_evolution_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: evogo_auth
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: evolution
+    volumes:
+      - evolution_postgres_data:/var/lib/postgresql/data
+      - ./docker/evolution/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - stack
+
 volumes:
   mysql_data:
   redis_data:
+  evolution_instances:
+  evolution_postgres_data:
 
 networks:
   stack:
