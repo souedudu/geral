@@ -155,7 +155,7 @@ services:
       - lar_storage:/var/www/storage
       - lar_bootstrap_cache:/var/www/bootstrap/cache
       - ./lar/.env.prod:/var/www/.env:ro
-    command: sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
+    command: php artisan schedule:work --no-interaction
     depends_on:
       - lar_app
       - redis
@@ -265,7 +265,9 @@ services:
       - restaurante_storage:/var/www/storage
       - restaurante_bootstrap_cache:/var/www/bootstrap/cache
       - ./restaurante/.env.prod:/var/www/.env:ro
-    command: sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
+    # schedule:work dispara no início de cada minuto; o loop com sleep 60 pulava
+    # um minuto a cada dois porque o ifood:polling (30 s) segura o schedule:run.
+    command: php artisan schedule:work --no-interaction
     depends_on:
       - restaurante_app
       - redis
@@ -398,7 +400,7 @@ services:
       - associadas_storage:/var/www/storage
       - associadas_bootstrap_cache:/var/www/bootstrap/cache
       - ./associadas/.env.prod:/var/www/.env:ro
-    command: sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
+    command: php artisan schedule:work --no-interaction
     depends_on:
       - associadas_app
       - redis
