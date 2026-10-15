@@ -6,7 +6,7 @@
         prod-shell-lar prod-shell-restaurante prod-shell-associadas prod-shell-mysql \
         prod-horizon-restart prod-queue-restart prod-queue-restart-associadas prod-diagnose \
         dev-up dev-down dev-ps dev-logs dev-shell-lar dev-shell-restaurante dev-shell-associadas \
-        backup backup-list backup-verificar backup-restore backup-cron backup-cron-remover \n        test test-reset
+        backup backup-list backup-verificar backup-restore backup-cron backup-cron-remover \n        test test-reset test-coverage
 
 PROD := docker compose -f docker-compose.prod.yml --env-file .env.prod
 DEV  := docker compose
@@ -246,6 +246,9 @@ prod-deploy-restaurante: ## Deploy só do restaurante (pull -> build app+fronten
 	$(PROD) exec restaurante_app php artisan view:cache
 	$(PROD) exec restaurante_app php artisan horizon:terminate
 	$(PROD) restart restaurante_app restaurante_horizon restaurante_scheduler
+	# Scheduler derrubado no meio de uma tarefa withoutOverlapping deixa a trava no Redis,
+	# e a tarefa fica pulada por até 24 h (aconteceu com impressao:monitorar).
+	$(PROD) exec restaurante_app php artisan schedule:clear-cache
 	@echo "$(G)Deploy do restaurante concluído (assets do volume public + frontend SPA atualizados).$(N)"
 
 prod-deploy-associadas: ## Deploy só do associadas (pull -> build -> assets -> migrate -> cache)
@@ -468,6 +471,11 @@ backup-cron-remover: ## Remove o backup do crontab do host
 
 test: ## Roda a suíte de testes do restaurante (FILTER=NomeDoTeste para um só)
 	@$(DEV) exec -e HOME=/tmp restaurante_app php artisan test $(if $(FILTER),--filter=$(FILTER),)
+
+test-coverage: ## Suíte com cobertura (pcov); relatório HTML em restaurante/backend/storage/coverage
+	@$(DEV) exec -e HOME=/tmp restaurante_app php -d pcov.enabled=1 -d pcov.directory=app -d memory_limit=2G \
+	    vendor/bin/phpunit --coverage-text --only-summary-for-coverage-text --coverage-html storage/coverage \
+	    $(if $(FILTER),--filter=$(FILTER),)
 
 test-reset: ## Recria o banco de testes do zero (use quando uma execução abortar no meio)
 	@$(DEV) exec mysql sh -c 'mysql -uroot -p"$$MYSQL_ROOT_PASSWORD" -e "\

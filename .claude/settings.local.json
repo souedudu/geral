@@ -11,7 +11,8 @@
       "Bash(git -C lar rev-parse --is-inside-work-tree)",
       "Bash(git -C restaurante rev-parse --is-inside-work-tree)",
       "Bash(cd \"//wsl.localhost/Ubuntu/home/dudu/www/sistemas/associadas/src\" && sed -n '1,80p' database/migrations/2024_01_01_000009_create_users_table.php && echo \"=== lang ===\" && ls -R lang && echo \"=== mail cfg ===\" && grep -n \"MAIL_\" .env)",
-      "Read(///wsl.localhost/Ubuntu/home/dudu/www/sistemas/associadas/**)"
+      "Read(///wsl.localhost/Ubuntu/home/dudu/www/sistemas/associadas/**)",
+      "PowerShell(docker exec -e HOME=/tmp -e DB_DATABASE=restaurante_cov7_test restaurante_app php artisan test --filter='AcessoMiddlewareTest|TenantAcessoTest|UsuariosEPerfisTest' 2>&1)"
     ]
   }
 }
