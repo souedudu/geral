@@ -43,6 +43,40 @@ services:
     networks:
       - stack
 
+  # ─── Lar: fila (WhatsApp) e agendador ────────────────────
+  # queue:listen (e não queue:work) recarrega o código a cada job: editar o src basta.
+  lar_queue:
+    build:
+      context: ./lar/docker/php
+      dockerfile: Dockerfile
+    container_name: lar_queue
+    restart: unless-stopped
+    working_dir: /var/www/lar
+    command: php artisan queue:listen redis --sleep=3 --tries=3 --timeout=120
+    volumes:
+      - ./lar/src:/var/www/lar
+      - ./lar/docker/php/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    depends_on:
+      - lar_app
+    networks:
+      - stack
+
+  lar_scheduler:
+    build:
+      context: ./lar/docker/php
+      dockerfile: Dockerfile
+    container_name: lar_scheduler
+    restart: unless-stopped
+    working_dir: /var/www/lar
+    command: php artisan schedule:work --no-interaction
+    volumes:
+      - ./lar/src:/var/www/lar
+      - ./lar/docker/php/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    depends_on:
+      - lar_app
+    networks:
+      - stack
+
   # ─── Restaurante (php-fpm) ───────────────────────────────
   restaurante_app:
     build:
@@ -83,6 +117,40 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    networks:
+      - stack
+
+  # ─── Associadas: fila (WhatsApp) e agendador ─────────────
+  # queue:listen (e não queue:work) recarrega o código a cada job: editar o src basta.
+  associadas_queue:
+    build:
+      context: ./associadas/docker/php
+      dockerfile: Dockerfile
+    container_name: associadas_queue
+    restart: unless-stopped
+    working_dir: /var/www/associadas
+    command: php artisan queue:listen redis --sleep=3 --tries=3 --timeout=120
+    volumes:
+      - ./associadas/src:/var/www/associadas
+      - ./associadas/docker/php/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    depends_on:
+      - associadas_app
+    networks:
+      - stack
+
+  associadas_scheduler:
+    build:
+      context: ./associadas/docker/php
+      dockerfile: Dockerfile
+    container_name: associadas_scheduler
+    restart: unless-stopped
+    working_dir: /var/www/associadas
+    command: php artisan schedule:work --no-interaction
+    volumes:
+      - ./associadas/src:/var/www/associadas
+      - ./associadas/docker/php/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    depends_on:
+      - associadas_app
     networks:
       - stack
 
