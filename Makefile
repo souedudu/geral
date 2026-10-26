@@ -221,8 +221,11 @@ prod-deploy-lar: ## Deploy só do lar (pull -> build -> assets -> migrate -> cac
 	git pull
 	git -C $(LAR) pull
 	$(PROD) build lar_app
-	docker run --rm -v $(PROJECT)_lar_public:/pub lar_app:prod \
-		sh -c "[ -d /var/www/public/build ] && rm -rf /pub/build && cp -a /var/www/public/build /pub/build || echo 'sem public/build na imagem — nada a copiar'"
+	# Sincroniza o public INTEIRO (não só o build): o volume nomeado mascara o public da
+	# imagem, e estático novo do repositório (css/lar.css, favicon.svg, img/, ícones e
+	# service worker do modo campo) não chegava ao site. `storage` (link dos uploads) fica.
+	docker run --rm --user root -v $(PROJECT)_lar_public:/pub lar_app:prod \
+		sh -c "[ -d /var/www/public ] && find /pub -mindepth 1 -maxdepth 1 ! -name storage -exec rm -rf {} + && cp -a /var/www/public/. /pub/ && chown -R www-data:www-data /pub && echo 'lar: public sincronizado (build + css + img + estáticos)' || { echo 'ERRO: sync do public falhou — site pode estar sem index.php!'; exit 1; }"
 	$(PROD) up -d lar_app lar_queue lar_scheduler
 	$(PROD) exec lar_app php artisan migrate --force
 	$(PROD) exec lar_app php artisan config:cache
